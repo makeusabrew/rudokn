@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 use rand::prelude::*;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 
 struct Puzzle {
     pub squares: Vec<u8>
@@ -38,10 +40,10 @@ impl Puzzle {
         }
 
         // 1x9
-        for col in 0..9 {
+        for column in 0..9 {
             let mut squares = vec![];
             for row in 0..9 {
-                let idx = col + (row * 9);
+                let idx = column + (row * 9);
                 squares.push(self.squares[idx]);
             }
             if !all_filled_unique(&squares) {
@@ -50,13 +52,12 @@ impl Puzzle {
         }
 
         // 3x3
-        for grid in 0..9 {
-            let start = ((grid % 3) * 3) + (grid / 3) * 27;
+        for _box in 0..9 {
+            let start = ((_box % 3) * 3) + (_box / 3) * 27;
             let mut squares = vec![];
             for row in 0..3 {
                 let start= start + (row * 9);
-                let row_squares = &self.squares[start..start+3];
-                squares.extend(row_squares);
+                squares.extend(&self.squares[start..start+3]);
             }
             if !all_filled_unique(&squares) {
                 return false
@@ -113,8 +114,40 @@ fn generate_valid_puzzle() -> Puzzle {
     }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
+    let sdl_context = sdl2::init()?;
+    let video_subsystem = sdl_context.video()?;
+    let window = video_subsystem
+        .window("rudokn?", 800, 600)
+        .position_centered()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut canvas = window
+        .into_canvas()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    println!("Generating puzzle...");
     let puzzle = generate_valid_puzzle();
     println!("{}", puzzle.print());
-    println!("Solved? {}", puzzle.is_solved())
+
+    let mut event_pump = sdl_context.event_pump().unwrap();
+
+    'running: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'running,
+                _ => {}
+            }
+        }
+
+        // @TODO: render grid with correct values
+    }
+
+    Ok(())
 }
