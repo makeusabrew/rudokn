@@ -9,6 +9,13 @@ use sdl2::render::TextureQuery;
 
 const SQUARE_SIZE: usize = 60;
 const SQUARES_TO_REMOVE: usize = 40;
+const START_OFFSET: usize = 30;
+
+macro_rules! rect(
+    ($x:expr, $y:expr, $w:expr, $h:expr) => (
+        Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
+    )
+);
 
 struct Puzzle {
     pub squares: Vec<u8>
@@ -16,8 +23,8 @@ struct Puzzle {
 
 fn valid_chunk(input: &[u8]) -> bool {
     let filled: Vec<_> = input.iter().filter(|&v| *v != 0).copied().collect();
-    let unique: Vec<_> = filled.iter().collect::<HashSet<_>>().into_iter().collect();
-    unique.len() == filled.len()
+    let unique = filled.iter().collect::<HashSet<_>>().into_iter().len();
+    unique == filled.len()
 }
 
 fn get_squares<F>(f: F) -> Vec<Vec<u8>> where
@@ -76,15 +83,14 @@ impl Puzzle {
     }
 
     pub fn is_solved(&self) -> bool {
-        let filled: Vec<_> = self.squares.iter().filter(|&v| *v != 0).copied().collect();
-        self.is_valid() && filled.len() == 81
+        let filled = self.squares.iter().filter(|&v| *v != 0).copied().count();
+        self.is_valid() && filled == 81
     }
 }
 
 fn generate_valid_puzzle() -> Puzzle {
     let mut rng = thread_rng();
     let mut puzzle = Puzzle::new();
-    //let mut failures = 0;
     loop {
         puzzle.squares = [0; 81].to_vec();
         for i in 0..81 {
@@ -99,10 +105,8 @@ fn generate_valid_puzzle() -> Puzzle {
             }
         }
         if puzzle.is_valid() {
-            //println!("Generation failures: {}", failures);
             break
         }
-        //failures += 1;
     }
 
     let mut squares_to_remove: Vec<u8> = (0..81).collect();
@@ -141,20 +145,42 @@ fn main() -> Result<(), String> {
         digits.push((texture, width, height));
     }
 
-    println!("Generating puzzle...");
-    let puzzle = generate_valid_puzzle();
+    let mut puzzle = generate_valid_puzzle();
 
-    let mut event_pump = sdl_context.event_pump().unwrap();
+    let mut event_pump = sdl_context.event_pump()?;
+
+    let mut selected_cell: Option<usize> = None;
 
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
+                Event::Quit { .. } => break 'running,
+                Event::KeyDown { keycode: Some(k), ..} => {
+                    if let Some(cell) = selected_cell {
+                        let num = k as i32;
+                        if num >= 49 && num <= 57 {
+                            puzzle.squares[cell] = (num - 48) as u8;
+                        } else if k == Keycode::Backspace {
+                            selected_cell = None;
+                            puzzle.squares[cell] = 0;
+                        }
+                        println!("Valid?: {} Solved?: {}", puzzle.is_valid(), puzzle.is_solved());
+                    }
+                }
                 _ => {}
+            }
+        }
+
+        let mouse_state = event_pump.mouse_state();
+        let mx = mouse_state.x() - START_OFFSET as i32;
+        let my = mouse_state.y() - START_OFFSET as i32;
+
+        if mouse_state.left() {
+            let x = mx/SQUARE_SIZE as i32;
+            let y = my/SQUARE_SIZE as i32;
+            if x >= 0 && y >= 0 && x < 9 && y < 9 {
+                let idx = x + (y * 9);
+                selected_cell = Some(idx as usize);
             }
         }
 
@@ -164,32 +190,38 @@ fn main() -> Result<(), String> {
             let square = puzzle.squares[i];
             let row = i/9;
             let column = i % 9;
-            let x = 30 + column * SQUARE_SIZE;
-            let y = 30 + row * SQUARE_SIZE;
+            let x = START_OFFSET + column * SQUARE_SIZE;
+            let y = START_OFFSET + row * SQUARE_SIZE;
             let size = SQUARE_SIZE as u32;
             canvas.set_draw_color(Color::GREY);
-            canvas.fill_rect(Rect::new(x as i32,  y as i32, size, size))?;
+            canvas.fill_rect(rect!(x,  y, size, size))?;
 
-            canvas.set_draw_color(Color::WHITE);
-            canvas
-                .fill_rect(Rect::new(x as i32 + 1, y as i32 + 1, size - 2, size - 2))?;
+            let color = if Some(i) == selected_cell {
+                Color::YELLOW
+            } else if mx >= 0 && my >= 0 && mx/SQUARE_SIZE as i32 == column as i32 && my/SQUARE_SIZE as i32 == row as i32 {
+                Color::RGBA(255, 255, 200, 255)
+            } else {
+                Color::WHITE
+            };
+            canvas.set_draw_color(color);
+            canvas.fill_rect(rect!(x, y, size - 2, size - 2))?;
             if square != 0 {
                 let (digit, w, h) = &digits[square as usize];
-                canvas.copy(digit, None, Some(Rect::new(x as i32 + 16, y as i32 - 2, *w, *h)))?;
+                canvas.copy(digit, None, Some(rect!(x + 16, y - 2, *w, *h)))?;
             }
         }
-        for vertical_delim in 0..4 {
-            let x = 30 + (vertical_delim * SQUARE_SIZE * 3);
-            let y = 30;
+        for vertical_stripes in 0..4 {
+            let x = START_OFFSET + (vertical_stripes * SQUARE_SIZE * 3);
+            let y = START_OFFSET;
             canvas.set_draw_color(Color::BLACK);
-            canvas.fill_rect((Rect::new(x as i32, y, 2, 9* SQUARE_SIZE as u32)))?;
+            canvas.fill_rect(rect!(x-1, y, 2, 9 * SQUARE_SIZE))?;
 
         }
-        for horizontal_delim in 0..4 {
-            let x = 30;
-            let y = 30 + (horizontal_delim * SQUARE_SIZE * 3);
+        for horizontal_stripes in 0..4 {
+            let x = START_OFFSET;
+            let y = START_OFFSET + (horizontal_stripes * SQUARE_SIZE * 3);
             canvas.set_draw_color(Color::BLACK);
-            canvas.fill_rect((Rect::new(x, y as i32, 9 * SQUARE_SIZE as u32, 2)))?;
+            canvas.fill_rect(rect!(x, y-1, 9 * SQUARE_SIZE, 2))?;
 
         }
         canvas.present();
