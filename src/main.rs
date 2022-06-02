@@ -29,7 +29,6 @@ struct Cell {
     pub value: MaybeValue
 }
 
-
 struct Puzzle {
     pub cells: Vec<Cell>
 }
@@ -53,7 +52,7 @@ fn get_cells<F>(f: F) -> Vec<Vec<MaybeValue>> where
 impl Puzzle {
     pub fn new() -> Self {
         Self {
-            cells: vec![]
+            cells: (0..81).map(|_| Cell {is_given: false, value: None}).collect()
         }
     }
 
@@ -100,9 +99,8 @@ impl Puzzle {
 
     pub fn random(difficulty: Difficulty) -> Self {
         let mut rng = thread_rng();
-        let mut puzzle = Self::new();
         loop {
-            puzzle.cells = (0..81).map(|_| Cell {is_given: false, value: None}).collect();
+            let mut puzzle = Self::new();
             for i in 0..81 {
                 let mut next_cell_values: Vec<u8> = (1..=9).collect();
                 next_cell_values.shuffle(&mut rng);
@@ -118,27 +116,25 @@ impl Puzzle {
                 }
             }
             if puzzle.is_valid() {
-                break
+                let cells_to_remove = match difficulty {
+                    Difficulty::Easy => 40,
+                    Difficulty::Medium => 50,
+                    Difficulty::Hard => 60,
+                };
+
+                let mut cell_indexes: Vec<u8> = (0..81).collect();
+                cell_indexes.shuffle(&mut rng);
+
+                for idx in &cell_indexes[0..cells_to_remove] {
+                    let idx = *idx as usize;
+                    puzzle.cells[idx] = Cell {
+                        is_given: false,
+                        value: None
+                    };
+                }
+                return puzzle
             }
         }
-
-        let cells_to_remove = match difficulty {
-            Difficulty::Easy => 40,
-            Difficulty::Medium => 50,
-            Difficulty::Hard => 60,
-        };
-
-        let mut cell_indexes: Vec<u8> = (0..81).collect();
-        cell_indexes.shuffle(&mut rng);
-
-        for idx in &cell_indexes[0..cells_to_remove] {
-            let idx = *idx as usize;
-            puzzle.cells[idx] = Cell {
-                is_given: false,
-                value: None
-            };
-        }
-        puzzle
     }
 }
 
