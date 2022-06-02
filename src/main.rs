@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Instant;
 
 use rand::prelude::*;
 use sdl2::event::Event;
@@ -199,6 +200,8 @@ fn main() -> Result<(), String> {
     let mut puzzle = Puzzle::random(Difficulty::Easy);
     let mut selected_cell: Option<usize> = None;
     let mut candidate_input_mode = false;
+    let mut solved_at: Option<Instant> = None;
+    let mut is_valid = puzzle.is_valid();
 
     'running: loop {
         /*
@@ -243,7 +246,14 @@ fn main() -> Result<(), String> {
                             } else if k == Keycode::Backspace {
                                 puzzle.cells[idx] = Default::default();
                             }
-                            println!("Valid?: {} Solved?: {}", puzzle.is_valid(), puzzle.is_solved());
+                            is_valid = puzzle.is_valid();
+                            let is_solved = puzzle.is_solved();
+                            if is_solved && solved_at.is_none() {
+                                selected_cell = None;
+                                solved_at = Some(Instant::now());
+                            } else if !is_solved {
+                                solved_at = None;
+                            }
                         }
                     }
                 }
@@ -286,10 +296,15 @@ fn main() -> Result<(), String> {
 
             let color = if Some(i) == selected_cell {
                 Color::YELLOW
-            } else if mx >= 0 && my >= 0 && mx / size == column as i32 && my / size == row as i32 {
-                Color::RGBA(255, 255, 200, 255)
             } else if is_given {
                 Color::RGBA(240, 240, 240, 255)
+            } else if let Some(_) = solved_at  {
+                // @TODO: animate
+                Color::RGBA(255, 223, 0, 255)
+            } else if !is_valid {
+                Color::RGBA(200, 200, 200, 255)
+            } else if mx >= 0 && my >= 0 && mx / size == column as i32 && my / size == row as i32 {
+                Color::RGBA(255, 255, 200, 255)
             } else {
                 Color::WHITE
             };
