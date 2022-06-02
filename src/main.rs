@@ -79,7 +79,7 @@ impl Puzzle {
             let start = ((i % 3) * 3) + (i / 3) * 27;
             let mut cells = vec![];
             for row in 0..3 {
-                let start= start + (row * 9);
+                let start = start + (row * 9);
                 cells.extend(self.cells[start..start+3].iter().map(|v| v.value));
             }
             cells
@@ -138,6 +138,18 @@ impl Puzzle {
     }
 }
 
+fn handle_keyboard(selected_cell: Option<usize>, increment: i32, predicate: fn(usize) -> bool) -> Option<usize> {
+    let cell = if let Some(cell) = selected_cell {
+        if predicate(cell) {
+            cell as i32 + increment
+        } else {
+            cell as i32
+        }
+    } else {
+        0
+    };
+    Some(cell as usize)
+}
 
 fn main() -> Result<(), String> {
     /*
@@ -175,12 +187,28 @@ fn main() -> Result<(), String> {
     let mut puzzle = Puzzle::random(Difficulty::Easy);
     let mut selected_cell: Option<usize> = None;
 
+
     'running: loop {
+        /*
+         * Keyboard input
+         */
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } => break 'running,
                 Event::KeyDown { keycode: Some(Keycode::Escape), ..} => {
                     selected_cell = None;
+                }
+                Event::KeyDown { keycode: Some(Keycode::Up), ..} => {
+                    selected_cell = handle_keyboard(selected_cell, -9, |cell| cell >= 9)
+                }
+                Event::KeyDown { keycode: Some(Keycode::Down), ..} => {
+                    selected_cell = handle_keyboard(selected_cell, 9, |cell| cell < 72)
+                }
+                Event::KeyDown { keycode: Some(Keycode::Left), ..} => {
+                    selected_cell = handle_keyboard(selected_cell, -1, |cell| cell > 0 && cell % 9 > 0)
+                }
+                Event::KeyDown { keycode: Some(Keycode::Right), ..} => {
+                    selected_cell = handle_keyboard(selected_cell, 1, |cell| cell < 80 && cell % 9 < 8)
                 }
                 Event::KeyDown { keycode: Some(k), ..} => {
                     if let Some(idx) = selected_cell {
@@ -201,6 +229,9 @@ fn main() -> Result<(), String> {
             }
         }
 
+        /*
+         * Mouse input
+         */
         let mouse_state = event_pump.mouse_state();
         let mx = mouse_state.x() - START_OFFSET as i32;
         let my = mouse_state.y() - START_OFFSET as i32;
@@ -214,6 +245,9 @@ fn main() -> Result<(), String> {
             }
         }
 
+        /*
+         * Rendering
+         */
         canvas.set_draw_color(Color::RGB(100, 100, 100));
         canvas.clear();
 
@@ -246,11 +280,14 @@ fn main() -> Result<(), String> {
             }
         }
 
-        for stripes in 0..4 {
-            let vx = START_OFFSET + (stripes * CELL_SIZE * 3);
+        /*
+         * Box outlines
+         */
+        for outlines in 0..4 {
+            let vx = START_OFFSET + (outlines * CELL_SIZE * 3);
             let vy = START_OFFSET;
             let hx = START_OFFSET;
-            let hy = START_OFFSET + (stripes * CELL_SIZE * 3);
+            let hy = START_OFFSET + (outlines * CELL_SIZE * 3);
 
             canvas.set_draw_color(Color::BLACK);
             canvas.fill_rect(rect!(vx - 1, vy, 2, 9 * CELL_SIZE))?;
