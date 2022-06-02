@@ -20,7 +20,7 @@ macro_rules! rect(
 enum Difficulty {
     Easy,
     Medium,
-    Hard
+    Hard,
 }
 
 type MaybeValue = Option<u8>;
@@ -29,11 +29,11 @@ type MaybeValue = Option<u8>;
 struct Cell {
     pub is_given: bool,
     pub value: MaybeValue,
-    pub candidates: [bool; 9]
+    pub candidates: [bool; 9],
 }
 
 struct Puzzle {
-    pub cells: Vec<Cell>
+    pub cells: Vec<Cell>,
 }
 
 fn valid_chunk(input: &[MaybeValue]) -> bool {
@@ -42,8 +42,10 @@ fn valid_chunk(input: &[MaybeValue]) -> bool {
     unique == filled.len()
 }
 
-fn get_cells<F>(f: F) -> Vec<Vec<MaybeValue>> where
-    F: Fn(usize) -> Vec<MaybeValue> {
+fn get_cells<F>(f: F) -> Vec<Vec<MaybeValue>>
+where
+    F: Fn(usize) -> Vec<MaybeValue>,
+{
     let mut rows = Vec::with_capacity(9);
     for i in 0..9 {
         rows.push(vec![]);
@@ -55,14 +57,17 @@ fn get_cells<F>(f: F) -> Vec<Vec<MaybeValue>> where
 impl Puzzle {
     pub fn new() -> Self {
         Self {
-            cells: (0..81).map(|_| Default::default()).collect()
+            cells: (0..81).map(|_| Default::default()).collect(),
         }
     }
 
     fn get_rows(&self) -> Vec<Vec<MaybeValue>> {
         get_cells(|i| {
             let start = i * 9;
-            self.cells[start..start+9].iter().map(|v| v.value).collect()
+            self.cells[start..start + 9]
+                .iter()
+                .map(|v| v.value)
+                .collect()
         })
     }
 
@@ -83,16 +88,16 @@ impl Puzzle {
             let mut cells = vec![];
             for row in 0..3 {
                 let start = start + (row * 9);
-                cells.extend(self.cells[start..start+3].iter().map(|v| v.value));
+                cells.extend(self.cells[start..start + 3].iter().map(|v| v.value));
             }
             cells
         })
     }
 
     pub fn is_valid(&self) -> bool {
-        !(self.get_rows().iter().any(|row| !valid_chunk(row)) ||
-            self.get_columns().iter().any(|col| !valid_chunk(col)) ||
-            self.get_boxes().iter().any(|_box| !valid_chunk(_box)))
+        !(self.get_rows().iter().any(|row| !valid_chunk(row))
+            || self.get_columns().iter().any(|col| !valid_chunk(col))
+            || self.get_boxes().iter().any(|_box| !valid_chunk(_box)))
     }
 
     pub fn is_solved(&self) -> bool {
@@ -115,7 +120,7 @@ impl Puzzle {
                         ..Default::default()
                     };
                     if puzzle.is_valid() {
-                        break
+                        break;
                     }
                 }
             }
@@ -133,13 +138,17 @@ impl Puzzle {
                     let idx = *idx as usize;
                     puzzle.cells[idx] = Default::default();
                 }
-                return puzzle
+                return puzzle;
             }
         }
     }
 }
 
-fn handle_keyboard(selected_cell: Option<usize>, increment: i32, predicate: fn(usize) -> bool) -> Option<usize> {
+fn handle_keyboard(
+    selected_cell: Option<usize>,
+    increment: i32,
+    predicate: fn(usize) -> bool,
+) -> Option<usize> {
     let cell = if let Some(cell) = selected_cell {
         if predicate(cell) {
             cell as i32 + increment
@@ -210,28 +219,45 @@ fn main() -> Result<(), String> {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } => break 'running,
-                Event::KeyDown { keycode: Some(Keycode::LGui), ..} => {
-                    candidate_input_mode = true
-                }
-                Event::KeyUp { keycode: Some(Keycode::LGui), ..} => {
-                    candidate_input_mode = false
-                }
-                Event::KeyDown { keycode: Some(Keycode::Escape), ..} => {
+                Event::KeyDown {
+                    keycode: Some(Keycode::LGui),
+                    ..
+                } => candidate_input_mode = true,
+                Event::KeyUp {
+                    keycode: Some(Keycode::LGui),
+                    ..
+                } => candidate_input_mode = false,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
                     selected_cell = None;
                 }
-                Event::KeyDown { keycode: Some(Keycode::Up), ..} => {
-                    selected_cell = handle_keyboard(selected_cell, -9, |cell| cell >= 9)
+                Event::KeyDown {
+                    keycode: Some(Keycode::Up),
+                    ..
+                } => selected_cell = handle_keyboard(selected_cell, -9, |cell| cell >= 9),
+                Event::KeyDown {
+                    keycode: Some(Keycode::Down),
+                    ..
+                } => selected_cell = handle_keyboard(selected_cell, 9, |cell| cell < 72),
+                Event::KeyDown {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    selected_cell =
+                        handle_keyboard(selected_cell, -1, |cell| cell > 0 && cell % 9 > 0)
                 }
-                Event::KeyDown { keycode: Some(Keycode::Down), ..} => {
-                    selected_cell = handle_keyboard(selected_cell, 9, |cell| cell < 72)
+                Event::KeyDown {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    selected_cell =
+                        handle_keyboard(selected_cell, 1, |cell| cell < 80 && cell % 9 < 8)
                 }
-                Event::KeyDown { keycode: Some(Keycode::Left), ..} => {
-                    selected_cell = handle_keyboard(selected_cell, -1, |cell| cell > 0 && cell % 9 > 0)
-                }
-                Event::KeyDown { keycode: Some(Keycode::Right), ..} => {
-                    selected_cell = handle_keyboard(selected_cell, 1, |cell| cell < 80 && cell % 9 < 8)
-                }
-                Event::KeyDown { keycode: Some(k), ..} => {
+                Event::KeyDown {
+                    keycode: Some(k), ..
+                } => {
                     if let Some(idx) = selected_cell {
                         let writable = !puzzle.cells[idx].is_given;
                         if writable {
@@ -239,7 +265,8 @@ fn main() -> Result<(), String> {
                             if (49..=57).contains(&num) {
                                 if candidate_input_mode {
                                     let cidx = (num - 49) as usize;
-                                    puzzle.cells[idx].candidates[cidx] = !puzzle.cells[idx].candidates[cidx];
+                                    puzzle.cells[idx].candidates[cidx] =
+                                        !puzzle.cells[idx].candidates[cidx];
                                 } else {
                                     puzzle.cells[idx].value = Some((num - 48) as u8);
                                 }
@@ -284,7 +311,11 @@ fn main() -> Result<(), String> {
         canvas.clear();
 
         for i in 0..81 {
-            let Cell { is_given, value , candidates } = puzzle.cells[i];
+            let Cell {
+                is_given,
+                value,
+                candidates,
+            } = puzzle.cells[i];
             let row = i / 9;
             let column = i % 9;
             let x = START_OFFSET + column * CELL_SIZE;
@@ -292,13 +323,13 @@ fn main() -> Result<(), String> {
             let size = CELL_SIZE as i32;
 
             canvas.set_draw_color(Color::GREY);
-            canvas.fill_rect(rect!(x,  y, size, size))?;
+            canvas.fill_rect(rect!(x, y, size, size))?;
 
             let color = if Some(i) == selected_cell {
                 Color::YELLOW
             } else if is_given {
                 Color::RGBA(240, 240, 240, 255)
-            } else if solved_at.is_some()  {
+            } else if solved_at.is_some() {
                 // @TODO: animate based on solved_at value
                 Color::RGBA(255, 223, 0, 255)
             } else if !is_valid {
@@ -339,7 +370,6 @@ fn main() -> Result<(), String> {
             canvas.set_draw_color(Color::BLACK);
             canvas.fill_rect(rect!(x, y, size, offset))?;
             canvas.fill_rect(rect!(y, x, offset, size))?;
-
         }
 
         canvas.present();
