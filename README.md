@@ -4,6 +4,8 @@
 * SDL2
 * Sudoku
 
+<img width="616" alt="image" src="https://user-images.githubusercontent.com/278461/171685014-0b40d5e1-f38d-4538-bdd8-bb6a64e03997.png">
+
 ## TODO
 
 * Fix unsolvable puzzles
