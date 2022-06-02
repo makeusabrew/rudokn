@@ -24,9 +24,11 @@ enum Difficulty {
 
 type MaybeValue = Option<u8>;
 
+#[derive(Default)]
 struct Cell {
     pub is_given: bool,
-    pub value: MaybeValue
+    pub value: MaybeValue,
+    pub candidates: [bool; 9]
 }
 
 struct Puzzle {
@@ -52,7 +54,7 @@ fn get_cells<F>(f: F) -> Vec<Vec<MaybeValue>> where
 impl Puzzle {
     pub fn new() -> Self {
         Self {
-            cells: (0..81).map(|_| Cell {is_given: false, value: None}).collect()
+            cells: (0..81).map(|_| Default::default()).collect()
         }
     }
 
@@ -108,7 +110,8 @@ impl Puzzle {
                 for value in next_cell_values {
                     puzzle.cells[i] = Cell {
                         is_given: true,
-                        value: Some(value)
+                        value: Some(value),
+                        ..Default::default()
                     };
                     if puzzle.is_valid() {
                         break
@@ -127,10 +130,7 @@ impl Puzzle {
 
                 for idx in &cell_indexes[0..cells_to_remove] {
                     let idx = *idx as usize;
-                    puzzle.cells[idx] = Cell {
-                        is_given: false,
-                        value: None
-                    };
+                    puzzle.cells[idx] = Default::default();
                 }
                 return puzzle
             }
@@ -171,7 +171,9 @@ fn main() -> Result<(), String> {
      * Load typeface and create usable digit textures
      */
     let font = ttf_context.load_font("./century_gothic.ttf", 48)?;
+    let small_font = ttf_context.load_font("./century_gothic.ttf", 16)?;
     let mut digits = vec![];
+    let mut small_digits = vec![];
     for digit in 0..=9 {
         let surface = font
             .render(&digit.to_string())
@@ -182,11 +184,21 @@ fn main() -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         let TextureQuery { width, height, .. } = texture.query();
         digits.push((texture, width, height));
+
+        let surface = small_font
+            .render(&digit.to_string())
+            .blended(Color::RGBA(120, 120, 120, 255))
+            .map_err(|e| e.to_string())?;
+        let texture = texture_creator
+            .create_texture_from_surface(&surface)
+            .map_err(|e| e.to_string())?;
+        let TextureQuery { width, height, .. } = texture.query();
+        small_digits.push((texture, width, height));
     }
 
     let mut puzzle = Puzzle::random(Difficulty::Easy);
     let mut selected_cell: Option<usize> = None;
-
+    let mut candidate_input_mode = false;
 
     'running: loop {
         /*
@@ -195,6 +207,12 @@ fn main() -> Result<(), String> {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } => break 'running,
+                Event::KeyDown { keycode: Some(Keycode::LGui), ..} => {
+                    candidate_input_mode = true
+                }
+                Event::KeyUp { keycode: Some(Keycode::LGui), ..} => {
+                    candidate_input_mode = false
+                }
                 Event::KeyDown { keycode: Some(Keycode::Escape), ..} => {
                     selected_cell = None;
                 }
@@ -216,10 +234,14 @@ fn main() -> Result<(), String> {
                         if writable {
                             let num = k as i32;
                             if (49..=57).contains(&num) {
-                                puzzle.cells[idx].value = Some((num - 48) as u8);
+                                if candidate_input_mode {
+                                    let cidx = (num - 49) as usize;
+                                    puzzle.cells[idx].candidates[cidx] = !puzzle.cells[idx].candidates[cidx];
+                                } else {
+                                    puzzle.cells[idx].value = Some((num - 48) as u8);
+                                }
                             } else if k == Keycode::Backspace {
-                                selected_cell = None;
-                                puzzle.cells[idx].value = None;
+                                puzzle.cells[idx] = Default::default();
                             }
                             println!("Valid?: {} Solved?: {}", puzzle.is_valid(), puzzle.is_solved());
                         }
@@ -252,7 +274,7 @@ fn main() -> Result<(), String> {
         canvas.clear();
 
         for i in 0..81 {
-            let Cell { is_given, value } = puzzle.cells[i];
+            let Cell { is_given, value , candidates } = puzzle.cells[i];
             let row = i / 9;
             let column = i % 9;
             let x = START_OFFSET + column * CELL_SIZE;
@@ -277,6 +299,16 @@ fn main() -> Result<(), String> {
             if let Some(value) = value {
                 let (digit, w, h) = &digits[value as usize];
                 canvas.copy(digit, None, Some(rect!(x + 16, y - 2, *w, *h)))?;
+            } else {
+                for (i, is_candidate) in candidates.into_iter().enumerate() {
+                    if !is_candidate {
+                        continue;
+                    }
+                    let cx = x + ((i % 3) * 22) + 1;
+                    let cy = y + ((i / 3) * 19) - 1;
+                    let (digit, w, h) = &small_digits[i + 1];
+                    canvas.copy(digit, None, Some(rect!(cx + 2, cy, *w, *h)))?;
+                }
             }
         }
 
