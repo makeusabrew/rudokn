@@ -29,44 +29,44 @@ impl Puzzle {
         }
     }
 
-    fn get_rows(&self) -> Vec<Vec<u8>> {
-        let mut rows = vec![];
+    fn get_squares<F>(&self, f: F) -> Vec<Vec<u8>> where
+        F: Fn(usize) -> Vec<u8> {
+        let mut rows = Vec::with_capacity(9);
         for i in 0..9 {
             rows.push(vec![]);
-            let start = (i * 9) as usize;
-            let squares = &self.squares[start..start+9];
-            rows[i] = squares.to_vec();
+            rows[i] = f(i);
         }
         rows
-
     }
+
+    fn get_rows(&self) -> Vec<Vec<u8>> {
+        self.get_squares(|i| {
+            let start = i * 9;
+            self.squares[start..start+9].to_vec()
+        })
+    }
+
     fn get_columns(&self) -> Vec<Vec<u8>> {
-        let mut columns = vec![];
-        for i in 0..9 {
-            columns.push(vec![]);
+        self.get_squares(|i| {
             let mut squares = vec![];
             for row in 0..9 {
                 let idx = i + (row * 9);
                 squares.push(self.squares[idx]);
             }
-            columns[i] = squares;
-        }
-        columns
+            squares
+        })
     }
 
     fn get_boxes(&self) -> Vec<Vec<u8>> {
-        let mut boxes = vec![];
-        for i in 0..9 {
-            boxes.push(vec![]);
+        self.get_squares(|i| {
             let start = ((i % 3) * 3) + (i / 3) * 27;
             let mut squares = vec![];
             for row in 0..3 {
                 let start= start + (row * 9);
                 squares.extend(&self.squares[start..start+3]);
             }
-            boxes[i] = squares;
-        }
-        boxes
+            squares
+        })
     }
 
     // are all rules satisfied when we ignore empty squares?
