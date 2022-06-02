@@ -298,8 +298,8 @@ fn main() -> Result<(), String> {
                 Color::YELLOW
             } else if is_given {
                 Color::RGBA(240, 240, 240, 255)
-            } else if let Some(_) = solved_at  {
-                // @TODO: animate
+            } else if solved_at.is_some()  {
+                // @TODO: animate based on solved_at value
                 Color::RGBA(255, 223, 0, 255)
             } else if !is_valid {
                 Color::RGBA(200, 200, 200, 255)
@@ -331,14 +331,14 @@ fn main() -> Result<(), String> {
          * Box outlines
          */
         for outlines in 0..4 {
-            let vx = START_OFFSET + (outlines * CELL_SIZE * 3);
-            let vy = START_OFFSET;
-            let hx = START_OFFSET;
-            let hy = START_OFFSET + (outlines * CELL_SIZE * 3);
+            let x = START_OFFSET + (outlines * CELL_SIZE * 3) - 1;
+            let y = START_OFFSET;
+            let offset = 9 * CELL_SIZE;
+            let size = 2;
 
             canvas.set_draw_color(Color::BLACK);
-            canvas.fill_rect(rect!(vx - 1, vy, 2, 9 * CELL_SIZE))?;
-            canvas.fill_rect(rect!(hx, hy - 1, 9 * CELL_SIZE, 2))?;
+            canvas.fill_rect(rect!(x, y, size, offset))?;
+            canvas.fill_rect(rect!(y, x, offset, size))?;
 
         }
 

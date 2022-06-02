@@ -11,3 +11,4 @@
 * More UI feedback
 * More theatrics when a puzzle is solved
 * Neater texture handling
+* Fewer magic numbers
