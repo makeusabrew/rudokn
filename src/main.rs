@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+
 use rand::prelude::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -12,10 +13,10 @@ fn unique(input: &[u8]) -> Vec<&u8> {
 }
 
 fn filled(input: &[u8]) -> Vec<u8> {
-    input.iter().filter(|&v| *v != 0).map(|v| *v).collect()
+    input.iter().filter(|&v| *v != 0).copied().collect()
 }
 
-fn all_filled_unique(input: &[u8]) -> bool {
+fn valid_chunk(input: &[u8]) -> bool {
     let filled = filled(input);
     let unique = unique(&filled);
     unique.len() == filled.len()
@@ -28,42 +29,51 @@ impl Puzzle {
         }
     }
 
-    // are all rules satisfied when we ignore empty squares?
-    pub fn is_valid(&self) -> bool {
-        // 9x1
-        for row in 0..9 {
-            let start = (row * 9) as usize;
+    fn get_rows(&self) -> Vec<Vec<u8>> {
+        let mut rows = vec![];
+        for i in 0..9 {
+            rows.push(vec![]);
+            let start = (i * 9) as usize;
             let squares = &self.squares[start..start+9];
-            if !all_filled_unique(squares) {
-                return false
-            }
+            rows[i] = squares.to_vec();
         }
+        rows
 
-        // 1x9
-        for column in 0..9 {
+    }
+    fn get_columns(&self) -> Vec<Vec<u8>> {
+        let mut columns = vec![];
+        for i in 0..9 {
+            columns.push(vec![]);
             let mut squares = vec![];
             for row in 0..9 {
-                let idx = column + (row * 9);
+                let idx = i + (row * 9);
                 squares.push(self.squares[idx]);
             }
-            if !all_filled_unique(&squares) {
-                return false
-            }
+            columns[i] = squares;
         }
+        columns
+    }
 
-        // 3x3
-        for _box in 0..9 {
-            let start = ((_box % 3) * 3) + (_box / 3) * 27;
+    fn get_boxes(&self) -> Vec<Vec<u8>> {
+        let mut boxes = vec![];
+        for i in 0..9 {
+            boxes.push(vec![]);
+            let start = ((i % 3) * 3) + (i / 3) * 27;
             let mut squares = vec![];
             for row in 0..3 {
                 let start= start + (row * 9);
                 squares.extend(&self.squares[start..start+3]);
             }
-            if !all_filled_unique(&squares) {
-                return false
-            }
+            boxes[i] = squares;
         }
-        true
+        boxes
+    }
+
+    // are all rules satisfied when we ignore empty squares?
+    pub fn is_valid(&self) -> bool {
+        !(self.get_rows().iter().any(|row| !valid_chunk(row)) ||
+            self.get_columns().iter().any(|col| !valid_chunk(col)) ||
+            self.get_boxes().iter().any(|_box| !valid_chunk(_box)))
     }
 
     pub fn is_solved(&self) -> bool {
@@ -77,7 +87,7 @@ impl Puzzle {
             let v = self.squares[square];
             buffer.push_str(format!("{} ", v).as_str());
             if square % 9 == 8 {
-                buffer.push_str("\n");
+                buffer.push('\n');
                 if square % 27 == 26 {
                     buffer.push_str(divider);
                 }
@@ -123,7 +133,7 @@ fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let mut canvas = window
+    let _canvas = window
         .into_canvas()
         .build()
         .map_err(|e| e.to_string())?;
